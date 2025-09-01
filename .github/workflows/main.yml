@@ -53,4 +53,5 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add data.json
             git commit -m "chore: update data.json (posted IDs) [skip ci]" || true
-            git push
+            git push || true
+          fi
