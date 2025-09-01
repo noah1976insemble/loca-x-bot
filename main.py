@@ -19,7 +19,7 @@ USER_AGENT = "loca-x-bot/0.1 (+https://loca-play.jp)"
 MAX_FETCH = 3      # 一度に要約を試す記事数（とりあえず上位3件でOK）
 
 DATA_FILE = "data.json"   # 投稿済み記事のIDを保存（重複防止）
-MAX_AGE_HOURS = 24         # 24時間より古い記事はスキップ
+MAX_AGE_HOURS = int(os.getenv("MAX_AGE_HOURS", "24"))  # 何時間以内の記事を対象にするか（古い記事はスキップ）
 # DRY_RUN モード設定:
 # "none"         → 実際に送信して記録（本番）
 # "print-only"   → 送信せずprintのみ（デモ用、記録も残さない）
