@@ -12,14 +12,15 @@ from openai import OpenAI
 
 from datetime import datetime, timezone, timedelta
 import json
+import time
 
 # ====== 設定 ======
 FEED_URL = "https://loca-play.jp/essentials/feed/"   # ← 必要に応じてCPTのRSSに変更
 USER_AGENT = "loca-x-bot/0.1 (+https://loca-play.jp)"
-MAX_FETCH = 3      # 一度に要約を試す記事数（とりあえず上位3件でOK）
+MAX_FETCH = int(os.getenv("MAX_FETCH", "20"))  # 一度に処理する記事数の上限（新着をまとめて処理）
 
 DATA_FILE = "data.json"   # 投稿済み記事のIDを保存（重複防止）
-MAX_AGE_HOURS = int(os.getenv("MAX_AGE_HOURS", "24"))  # 何時間以内の記事を対象にするか（古い記事はスキップ）
+MAX_AGE_HOURS = int(os.getenv("MAX_AGE_HOURS", "168"))  # 何時間以内（既定: 7日以内）を対象
 # DRY_RUN モード設定:
 # "none"         → 実際に送信して記録（本番）
 # "print-only"   → 送信せずprintのみ（デモ用、記録も残さない）
@@ -150,7 +151,8 @@ def main():
         print("RSSにエントリが見つかりませんでした。")
         return
 
-    # とりあえず上位から順に試す（最初の1件が要約生成できれば十分なデモ）
+    # 新着をまとめて処理する: 未投稿 かつ 7日以内 を抽出
+    eligible = []
     for idx, entry in enumerate(entries[:MAX_FETCH], start=1):
         title = getattr(entry, "title", "(no title)")
         link  = getattr(entry, "link", None)
@@ -169,25 +171,41 @@ def main():
             print(f"  → 古い記事（{age:.1f}h）なのでスキップ")
             continue
 
+        eligible.append(entry)
+
+    if not eligible:
+        print("\n📭 新規に投稿する対象はありません（未投稿かつ期限内のエントリなし）。")
+        return
+
+    # 古い順→新しい順で投稿（時系列を保つ）
+    def _published_ts(e):
+        pp = getattr(e, "published_parsed", None)
+        return (datetime(*pp[:6], tzinfo=timezone.utc).timestamp() if pp else 0)
+
+    eligible.sort(key=_published_ts)  # 古いものから
+
+    posted_count = 0
+    for entry in eligible:
+        title = getattr(entry, "title", "(no title)")
+        link  = getattr(entry, "link", None)
+        entry_id = getattr(entry, "id", link)
+
         try:
             html = fetch_article_html(link)
             text = extract_main_text(html)
             if len(text) < 100:
-                print("  → 本文が短すぎるためスキップ")
+                print(f"  → 本文が短すぎるためスキップ: {title}")
                 continue
 
             summary = summarize_for_x(title, text)
             tweet_body = f"【新着】{summary} {link}"
-            # Xの制限を考慮して冗長すぎる場合を調整
             if len(tweet_body) > 270:
-                # URL分を確保して本文短縮
                 keep = 270 - len(link) - 1
                 tweet_body = f"【新着】{summary[:keep]}… {link}"
 
             print("\n🧂 要約（X投稿案)")
             print(tweet_body)
 
-            # 本番運用ではここでIFTTTに送信し、成功したらIDを記録
             if DRY_RUN == "print-only":
                 print("\n🧪 DRY_RUN=print-only → 送信せず、記録も残しません")
             elif DRY_RUN == "record-only":
@@ -196,16 +214,17 @@ def main():
                 save_posted_ids(posted_ids)
                 print("📒 投稿履歴を更新しました（重複防止）")
             else:
-                # 本番: 送信して記録
                 post_to_ifttt(tweet_body)
                 posted_ids.add(entry_id)
                 save_posted_ids(posted_ids)
                 print("🍽  投稿済みとして記録しました（重複防止）")
+                time.sleep(2)  # 連投になりすぎないように間隔を少し空ける
 
-            print("\n✅ ここまでOKなら、この出力をIFTTTに送ればテストアカウントへ投稿できます。")
-            break  # 1件作れたらデモとしては十分
+            posted_count += 1
         except Exception as e:
             print(f"  → 失敗: {e}. 次のエントリを試します。")
+
+    print(f"\n✅ まとめ: {posted_count}件のエントリを処理しました（モード: {DRY_RUN}, 対象期間: {MAX_AGE_HOURS}h）。")
 
 if __name__ == "__main__":
     main()
