@@ -1,8 +1,8 @@
 name: Loca Tweet Bot
 
 on:
-  schedule:
-    - cron: "0 * * * *"        # 毎時0分（UTC）。JSTでは毎時9分後ではなく“毎時ちょうど”に相当（1時間間隔）
+  # schedule:
+  #  - cron: "0 * * * *"        # 毎時0分（UTC）。JSTでは毎時9分後ではなく“毎時ちょうど”に相当（1時間間隔）
   workflow_dispatch:            # 手動実行ボタン
 
 permissions:
