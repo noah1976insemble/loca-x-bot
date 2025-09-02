@@ -104,7 +104,7 @@ def summarize_for_x(title: str, text: str) -> str:
     - 絵文字は1個まで
     - 宣伝っぽさは控えめ、要点を一言で
     - 固有名詞と数字はできるだけ残す
-    - **URLは本文に含めない（外部サイトや http/https を出力しない）**
+    - **記事内にある、loca-play.jp以外の外部サイトURLは本文に含めない**
     記事タイトル: {title}
     本文抜粋:
     {snippet}
