@@ -2,11 +2,11 @@ name: Loca Tweet Bot
 
 on:
   # schedule:
-  #  - cron: "0 * * * *"        # 毎時0分（UTC）。JSTでは毎時9分後ではなく“毎時ちょうど”に相当（1時間間隔）
+  #  - cron: "0 * * * *"        # 毎時0分（UTC）。本運用では毎日1回、SNSで読まれやすい時間帯にする
   workflow_dispatch:            # 手動実行ボタン
 
 permissions:
-  contents: write               # data.json をコミットするため
+  contents: write               # data.json（重複確認用） をコミットするため
 
 concurrency:
   group: loca-x-bot
